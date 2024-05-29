@@ -1,0 +1,372 @@
+<%@ page language="java" contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ include file="/static_root/inc/admin_top.jsp" %>
+<jsp:useBean id="now" class="java.util.Date"/>
+<fmt:formatDate value="${now}" pattern="yyyy.MM.dd" var="todaydate"/>
+<fmt:formatDate var="toYear" value="${now}" pattern="yyyy" /> 
+
+<script type="text/javascript">
+var PAGE_SIZE= ${INIT_DATA.VIEW_SIZE};
+$(document).ready(function() {
+	fncMakePageBody("${INIT_DATA.TOTAL_CNT}","${INIT_DATA.CURR_PAGE}");
+	// 달력 생성
+	setFromToDatePicker("SCH_ST_DT", "SCH_ED_DT");
+
+	$('#frm').find("input").each(function(e){
+		$(this).bind("keyup",function(){
+			if(event.keyCode==13){
+				fnSearch();
+			}
+		});
+	});
+});
+
+//페이징
+var page_List= function(pageNo) {
+	$("#CURR_PAGE").val(pageNo);
+	$('#frm').attr("target","");  
+	$('#frm').attr("action", "/Sa/Ca/CaDm040L.do");
+	$('#frm').submit();
+};
+
+//조회
+function fnSearch() {
+	$("#CURR_PAGE").val('1');
+	$('#frm').attr("target","");  
+	$('#frm').attr("action", "/Sa/Ca/CaDm040L.do");
+	$('#frm').submit();
+}
+
+//등록
+function fnMoveReg(flag) {
+	$('#frm').attr("target","");  
+	$('#frm').attr("action", "/Sa/Ca/CaDm040M.do");	
+	$('#frm').submit();
+}
+
+//상세
+function fnDetail(SurveySeq, flag , gubun) {
+	$('#CAP_SURVEY_SEQ').val(SurveySeq);
+	$('#DATA_FLAG').val(flag);
+	$('#frm').attr("target","");  
+	$('#frm').attr("action", "/Sa/Ca/CaDm040M.do");
+	$('#frm').submit();
+	$('#DATA_FLAG').val("");
+}
+
+//상세
+function fnDetailPop(SurveySeq){
+	$('#CAP_SURVEY_SEQ').val(SurveySeq);
+	
+	var popup= window.open('about:blank','cap_diagnosisMng_popup','width=1000,height=900,scrollbars=yes');
+	popup.focus();
+
+	$('#frm').attr("action", "/Sa/Ca/CaDm010D.do");
+	$('#frm').attr("target","cap_diagnosisMng_popup");
+	$('#frm').submit();
+	$('#frm').attr("target","");  
+}
+
+function fnUseYNSet(seq, status){
+	var txt= status=="Y" ? "중단취소" : "검사중단";
+	var cfm= confirm(txt+'하시겠습니까?');
+	if (cfm) {
+		$.ajax({
+			type: "POST",
+			url : "/Sa/Ca/CaDm010Us.do",
+			data: {
+				"CAP_SURVEY_SEQ" : seq,
+				"USE_YN" : status
+			},
+			dataType: "json",
+			success: function (transport){
+				alert(txt+" 처리되었습니다.");
+				fnSearch();
+			}
+		});
+	}
+}
+
+	function fnOpenResultPop(obj, pCapSurveySeq) {
+		$("#CAP_SURVEY_SEQ").val(pCapSurveySeq);
+		
+		var popup= window.open('about:blank','capSurveyResultPopup','width=1020,height=700,scrollbars=yes');
+		popup.focus();
+	
+		$('#frm').attr("action", "/Sa/Ca/CaDm010P1.do");	
+		
+		$('#frm').attr("target","capSurveyResultPopup");
+		$('#frm').submit();
+		$('#frm').attr("target","");  
+	}
+	
+	// 종합결과
+	function popOpenTotal(seq) {
+		var pPopupUrl= "/admin/Ca/pop_CaTotalRP4.do?CAP_SURVEY_SEQ="+seq;
+		var pPopupId= "POPUP_TOTAL_REPORT";
+		var pOpts= "width=810, height=1000, scrollbars=yes, toolbar=no, status=no, location=no, menubar=no";//resizable, fullscreen
+		window.open(pPopupUrl, pPopupId, pOpts);
+	}
+	
+	//원데이터
+	function rawDataDown(seq){
+		$("#CAP_SURVEY_SEQ").val(seq);
+		$('#frm').attr("action", "/admin/Ca/CaRawData.do");	
+		$('#frm').submit();
+	}
+
+	// 알림톡 보내기
+	function fnAtalkPop(seq){
+
+		$("#CAP_SURVEY_SEQ").val(seq);
+		$("#TALK_TAR_OPTION").val("0001");
+		
+		$.ajax({
+			url : "/common/pop_CoSendTalkTarChk.do",
+			data : $("#frm").serialize(),
+			type :"post",
+			dataType: "json",
+			success : function(res){
+				var RESULT = eval(res.RESULT);
+				
+				if(RESULT.CST_CHK == 'Y'){
+					var pPopupUrl= "/common/pop_CoSendTalk.do";
+					var pPopupId= "SEND_ATALK";
+					var pOpts= "width=800, height=1000, scrollbars=yes, toolbar=no, status=no, location=no, menubar=no"; //resizable, fullscreen
+					window.open(pPopupUrl, pPopupId, pOpts);
+
+					$('#frm').attr("action", pPopupUrl);
+					$('#frm').attr("method", "POST");
+					
+					$('#frm').attr("target",pPopupId);
+					$('#frm').submit();
+					$('#frm').attr("target", "");
+					
+				}else{
+					alert("대상자가 존재하지 않거나 검사 진행중인 진단지가 아닙니다.");
+					return false;
+				}
+				
+			},error :function(e){
+				alert("알림톡 보내기 실패");
+				return false;
+			}
+		});
+		
+	}
+	
+	function fnUpdateSt_date(seq) {
+		$("#CAP_SURVEY_SEQ").val(seq);
+		
+		var popup= window.open('about:blank','capSurveyResultPopup','width=1020,height=700,scrollbars=yes');
+		popup.focus();
+
+		$('#frm').attr("action", "/Sa/Ca/CaDm010P1_Sub.do");	
+		
+		$('#frm').attr("target","capSurveyResultPopup");
+		$('#frm').submit();
+		$('#frm').attr("target",""); 
+	}
+	</script>
+</head>
+
+<body>
+	<div id="wrap">
+		<!-- 상단영역 -->
+		<%@ include file="/static_root/inc/admin_header.jsp" %>
+		<!-- 상단영역 -->
+		
+		<ul id="contAdm">
+			<li id="left">
+				<!-- 좌측영역 -->
+				<%@ include file="/static_root/inc/admin_left.jsp" %>
+				<!-- 좌측영역 -->
+			</li>
+			<li id="right">
+				<!-- 타이틀/네비 -->
+				<dl class="titleNavi clearfix">
+					<dt><i class="fas fa-home"></i>&gt; ${V_MENU_NAVI}</dt>
+					<dd>${V_MENU_NM}</dd>
+				</dl>
+				<!-- 타이틀/네비 끝 -->
+				
+				
+				<!-- 본문영역 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// -->
+				<div id="contSect">
+					<!-- 검색 -->
+					<form name="frm" id="frm" method="post" action="/Sa/Ca/CaDm040L.do">
+						<input type="hidden" name="CAP_SURVEY_SEQ"   id="CAP_SURVEY_SEQ"  value="" />
+						<input type="hidden" name="DATA_FLAG"    id="DATA_FLAG"   value="" />
+						
+						<input type="hidden" name="CURR_PAGE" id="CURR_PAGE"   value="${INIT_DATA.CURR_PAGE}" />
+						<input type="hidden" name="VIEW_SIZE" id="VIEW_SIZE"   value="${INIT_DATA.VIEW_SIZE}" />
+						
+						<input type="hidden" name="TALK_TAR"    id="TALK_TAR"   value="CA" />
+						<input type="hidden" name="TALK_TAR_OPTION"    id="TALK_TAR_OPTION"   value="" />
+						
+						<fieldset>
+							<legend>게시물 검색</legend>
+							<div id="srchBox" class="srch-adm">
+								<ul>
+									<li class="scharea2">
+										<ul>
+											<li>
+												<label for="SCH_YEAR">년도</label>
+												<select name="SCH_YEAR" id="SCH_YEAR" title="년도" class="select">
+									                <option value="">전체</option>
+									                <c:forEach begin="0" end="5" varStatus="status">
+									               		<option value="${toYear - status.index}" <c:if test="${INIT_DATA.SCH_YEAR eq toYear - status.index}">selected="selected"</c:if>>${toYear - status.index}</option>
+									                </c:forEach>
+									            </select>
+											</li>
+											<li>
+												<label for="SCH_STATUS">상태</label>
+												<select name="SCH_STATUS" id="SCH_STATUS" title="상태" class="select">
+									                <option value="">전체</option>
+									                <option value="0001" <c:if test='${INIT_DATA.SCH_STATUS eq "0001"}'>selected="selected"</c:if>>검사전</option>
+									                <option value="0002" <c:if test='${INIT_DATA.SCH_STATUS eq "0002"}'>selected="selected"</c:if>>검사중</option>
+									                <option value="0003" <c:if test='${INIT_DATA.SCH_STATUS eq "0003"}'>selected="selected"</c:if>>검사종료</option>
+									                <option value="0004" <c:if test='${INIT_DATA.SCH_STATUS eq "0004"}'>selected="selected"</c:if>>검사중단</option>
+									            </select>
+											</li>
+										</ul>
+									</li>
+									<li class="scharea2">
+										<ul>
+											<li>
+												<label for="SCH_ST_DT">등록일</label>
+												<div class="cal-date">
+													<span><input type="text" name="SCH_ST_DT" id="SCH_ST_DT" value="${INIT_DATA.SCH_ST_DT}" title="시작일자" class="input cal-date" required="required" /></span>
+	            									<span class="wave">~</span>
+	            									<span><input type="text" name="SCH_ED_DT" id="SCH_ED_DT" value="${INIT_DATA.SCH_ED_DT}" title="종료일자" class="input cal-date" required="required" /></span>
+												</div>
+											</li>
+											<li>
+												<label for="SCH_TEXT">검사명</label>
+												<input type="text" name="SCH_TEXT" id="SCH_TEXT" value="<c:if test="${!empty INIT_DATA.SCH_TEXT}">${INIT_DATA.SCH_TEXT}</c:if>" class="input" title="검사명" placeholder="검사명" maxlength="100" />
+											</li>
+										</ul>
+									</li>
+								</ul>
+								<div><a href="#" onclick="fnSearch();">SEARCH</a></div>
+							</div>
+						</fieldset>
+					</form>
+					<!-- 검색 끝 -->
+					
+					<!-- 버튼 -->
+					<div class="ar mb10">
+						<a href="/Sa/Ca/CaDm040M.do" onclick="fnMoveReg('S'); return false;" class="btn9">신규등록</a>
+					</div>
+					<!-- 버튼 끝 -->
+					
+					<!-- 리스트 -->
+					<div class="tableListScrollSmall">
+						<table summary="목록">
+							<caption>목록</caption>
+							<colgroup>
+								<col width="45" />
+								<col width="50" />
+								<col width="150" />
+								<col width="90" />
+								<col width="50" />
+								<col width="70" />
+								<col width="70" />
+								<col width="80" />
+								<col width="70" />
+								<col width="70" />
+								<col width="80" />
+								<col width="80" />
+								<col width="70" />
+								<col width="70" />
+								<col width="100" />
+								<col width="80" />
+							</colgroup>
+							<thead>
+								<tr>
+									<th>번호</th>
+									<th>년도</th>
+									<th>진단검사명</th>
+									<th>검사기간</th>
+									<th>참여</th>
+									<th>참여율</th>
+									<th>등록자</th>
+									<th>등록일</th>
+									<th>상태</th>
+									<th>학생별 결과</th>
+									<th>종합 결과</th>
+									<th>원데이터<br/>다운로드</th>
+									<th>검사 중단</th>
+									<th>복사</th>
+									<th>알림톡<br/>보내기</th>
+									<th>기간<br/>수정</th>
+								</tr>
+							</thead>
+							<tbody>
+								<c:if test="${not empty INIT_DATA.resultList}">
+									<c:forEach items="${INIT_DATA.resultList}" var="item" varStatus="rowStatus">
+										<tr class="row">
+											<td>${item.RNUM}</td>
+											<td>${item.YYYY}</td>
+											<th class="ellipsis" title="${item.TITLE}">
+												<c:if test="${item.STATUS_NM eq '검사전'}">
+													<a href="javascript:fnDetail('${item.CAP_SURVEY_SEQ}', 'U' , '${item.SURVEY_TAR}');" class="link">
+												</c:if>
+												<c:if test="${item.STATUS_NM ne '검사전'}">
+													<a href="javascript:fnDetailPop('${item.CAP_SURVEY_SEQ}');" class="link">
+												</c:if>
+													${item.TITLE}
+												</a>
+											</th>
+											<td>${item.ST_DT}<br/>~${item.ED_DT}</td>
+											<td>${item.ATT}</td>
+											<td>${item.ATT_AVG}%</td>
+											<td>${item.REGNM}</td>
+											<td>${item.REGDATE}</td>
+											<td>${item.STATUS_NM}</td>
+											<td><%-- <c:if test="${item.ATT ne 0}"> --%><a class="btnS3" href="javascript:fnOpenResultPop(this,'<c:out value="${item.CAP_SURVEY_SEQ}"/>');">조회</a><%-- </c:if --%></td>
+											<td><a class="btnS9" href="#" onclick="popOpenTotal('${item.CAP_SURVEY_SEQ}');return false;">보기</a></td> <!-- 종합결과 -->
+											<td><a class="btnS7" href="#" onclick="rawDataDown('<c:out value="${item.CAP_SURVEY_SEQ}"/>');return false;">다운로드</a></td> <!-- 원데이터 다운로드 -->
+											<td>
+												<c:if test="${item.STATUS_NM eq '검사중'}">
+													<a href="javascript:fnUseYNSet('${item.CAP_SURVEY_SEQ}', 'N');" class="btnS4">검사중단</a>
+												</c:if>
+												<c:if test="${item.USE_YN eq 'N'}">
+													<a href="javascript:fnUseYNSet('${item.CAP_SURVEY_SEQ}', 'Y');" class="btnS2">중단취소</a>
+												</c:if>
+											</td>
+											<td>
+												<a href="javascript:fnDetail('${item.CAP_SURVEY_SEQ}', 'C','${item.SURVEY_TAR}');" class="btnS1">복사</a>
+											</td>
+											<td>
+												<a href="javascript:fnAtalkPop('${item.CAP_SURVEY_SEQ }');" class="btnS3">알림톡보내기</a>
+											</td>
+											<td>
+												<a href="javascript:fnUpdateSt_date('${item.CAP_SURVEY_SEQ }');" class="btnS4">기간 수정</a>
+											</td>
+										</tr>
+									</c:forEach>
+								</c:if>
+								<c:if test="${empty INIT_DATA.resultList}">
+									<tr>
+										<td colspan="12">검색결과가 없습니다.</td>
+									</tr>
+								</c:if>
+							</tbody>
+						</table>
+					</div>
+					<!-- 리스트 끝 -->
+					
+					<!-- 페이징 -->
+					<div id="paging_bar" class="listPaging mt30"></div>
+					<!-- 페이징 끝 -->
+				</div>
+				<!-- 본문영역 끝 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// -->
+			</li>
+		</ul>
+		
+		<!-- 하단영역 -->
+		<%@ include file="/static_root/inc/admin_footer.jsp" %>
+		<!-- 하단영역 끝 -->
+	</div>
+</body>
+</html>
